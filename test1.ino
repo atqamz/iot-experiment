@@ -61,6 +61,9 @@ void loop()
   // --- Manual Dimmer Control Demo ---
   setDimmerBrightness(1, brightness1);
   setDimmerBrightness(2, brightness2);
+  Serial.print("{\"dimmer_brightness\":");
+  Serial.print(brightness1);
+  Serial.println("}");
 
   // Change the brightness for next time through the loop
   brightness1 = brightness1 + fadeAmount;
@@ -71,5 +74,5 @@ void loop()
     fadeAmount = -fadeAmount;
   }
 
-  delay(100); // Shorten delay for smoother fading
+  delay(100); // Shorten delay for smoother fading;
 }
