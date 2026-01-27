@@ -4,6 +4,7 @@
 #include "modbus.h"
 #include "pzem.h"
 #include "dimmer.h"
+#include "wifi_firebase.h"
 
 HardwareSerial SensorSerial(2); // UART2 for Modbus
 
@@ -15,6 +16,10 @@ int brightness1 = 0;
 int brightness2 = 0;
 int fadeAmount = 5; // How much to fade each step
 
+// Firebase upload interval (5 seconds)
+const unsigned long FIREBASE_INTERVAL = 5000;
+unsigned long lastFirebaseUpload = 0;
+
 void setup()
 {
   Serial.begin(115200);
@@ -22,7 +27,10 @@ void setup()
   pinMode(RS485_DIR, OUTPUT); // From modbus.h
   digitalWrite(RS485_DIR, LOW);
 
-  initializePZEM(); // New function call
+  // Initialize WiFi (also initializes NTP for timestamps)
+  initWiFi();
+
+  initializePZEM(); // Initialize PZEM sensor
   initializeDimmers(); // Initialize the dimmers
 }
 
@@ -72,6 +80,19 @@ void loop()
   // Reverse the direction of the fade at the ends
   if (brightness1 <= 0 || brightness1 >= 100) {
     fadeAmount = -fadeAmount;
+  }
+
+  // --- Firebase Upload (every 5 seconds) ---
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastFirebaseUpload >= FIREBASE_INTERVAL) {
+    lastFirebaseUpload = currentMillis;
+    
+    // Send all sensor data to Firebase
+    if (sendDataToFirebase(temperature, humidity, pzemData, brightness1, brightness2)) {
+      Serial.println("{\"firebase\":\"upload_success\"}");
+    } else {
+      Serial.println("{\"firebase\":\"upload_failed\"}");
+    }
   }
 
   delay(100); // Shorten delay for smoother fading;
