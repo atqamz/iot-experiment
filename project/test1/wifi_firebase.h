@@ -28,7 +28,9 @@ String getTimestamp();
 
 // Send sensor data to Firebase
 // Returns true if successful, false otherwise
-bool sendDataToFirebase(float temperature, float humidity, PzemData pzemData, int brightness1, int brightness2);
+// brightness: current dimmer brightness (0-100)
+// lightLevel: raw light sensor reading (0-4095)
+bool sendDataToFirebase(float temperature, float humidity, PzemData pzemData, int brightness, int lightLevel);
 
 // Check WiFi connection status
 bool isWiFiConnected();

@@ -79,7 +79,7 @@ bool isWiFiConnected() {
     return wifiConnected;
 }
 
-bool sendDataToFirebase(float temperature, float humidity, PzemData pzemData, int brightness1, int brightness2) {
+bool sendDataToFirebase(float temperature, float humidity, PzemData pzemData, int brightness, int lightLevel) {
     if (!isWiFiConnected()) {
         Serial.println("WiFi not connected, skipping Firebase upload");
         return false;
@@ -96,32 +96,38 @@ bool sendDataToFirebase(float temperature, float humidity, PzemData pzemData, in
     // Build JSON payload using ArduinoJson
     JsonDocument doc;
     
-    // Human-readable timestamp
+    // Timestamps (root level)
     doc["timestamp"] = getTimestamp();
-    
-    // Unix timestamp for sorting/querying
     doc["unix_time"] = (unsigned long)time(nullptr);
     
-    // Modbus sensor data
-    doc["temperature"] = round(temperature * 10) / 10.0;
-    doc["humidity"] = round(humidity * 10) / 10.0;
+    // Environment group (XY-MD02 Modbus sensor)
+    JsonObject environment = doc["environment"].to<JsonObject>();
+    environment["temperature"] = round(temperature * 10) / 10.0;
+    environment["humidity"] = round(humidity * 10) / 10.0;
+    environment["connected"] = (temperature != -1);  // -1 means no response
     
-    // PZEM sensor data
-    doc["voltage"] = round(pzemData.voltage * 10) / 10.0;
-    doc["current"] = round(pzemData.current * 100) / 100.0;
-    doc["power"] = round(pzemData.power * 10) / 10.0;
-    doc["energy"] = round(pzemData.energy * 1000) / 1000.0;
-    doc["frequency"] = round(pzemData.frequency * 10) / 10.0;
-    doc["pf"] = round(pzemData.pf * 100) / 100.0;
-    doc["pzem_connected"] = pzemData.connected;
+    // Power group (PZEM-004T sensor)
+    JsonObject power = doc["power"].to<JsonObject>();
+    power["voltage"] = round(pzemData.voltage * 10) / 10.0;
+    power["current"] = round(pzemData.current * 100) / 100.0;
+    power["power"] = round(pzemData.power * 10) / 10.0;
+    power["energy"] = round(pzemData.energy * 1000) / 1000.0;
+    power["frequency"] = round(pzemData.frequency * 10) / 10.0;
+    power["pf"] = round(pzemData.pf * 100) / 100.0;
+    power["connected"] = pzemData.connected;
     
-    // Dimmer states
-    doc["dimmer1"] = brightness1;
-    doc["dimmer2"] = brightness2;
+    // Lighting group (Light sensor + Dimmers)
+    JsonObject lighting = doc["lighting"].to<JsonObject>();
+    lighting["light_level"] = lightLevel;           // Raw ADC value (0-4095)
+    lighting["auto_brightness"] = brightness;       // Calculated brightness (0-100%)
+    lighting["dimmer1"] = brightness;
+    lighting["dimmer2"] = brightness;
     
-    // Device info
-    doc["device"] = "ESP32S3_IoT";
-    doc["free_heap"] = ESP.getFreeHeap();
+    // System group (Device info)
+    JsonObject system = doc["system"].to<JsonObject>();
+    system["device"] = "ESP32S3_IoT";
+    system["free_heap"] = ESP.getFreeHeap();
+    system["wifi_rssi"] = WiFi.RSSI();              // Signal strength in dBm
     
     // Serialize JSON to string
     String jsonString;

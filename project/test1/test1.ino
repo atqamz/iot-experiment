@@ -5,16 +5,16 @@
 #include "pzem.h"
 #include "dimmer.h"
 #include "wifi_firebase.h"
+#include "light_sensor.h"
 
 HardwareSerial SensorSerial(2); // UART2 for Modbus
 
 #define RXD2 18
 #define TXD2 17
 
-// Dimmer control variables
-int brightness1 = 0;
-int brightness2 = 0;
-int fadeAmount = 5; // How much to fade each step
+// Dimmer brightness (controlled by light sensor)
+int brightness = 0;
+int lightLevel = 0;
 
 // Firebase upload interval (5 seconds)
 const unsigned long FIREBASE_INTERVAL = 5000;
@@ -23,6 +23,8 @@ unsigned long lastFirebaseUpload = 0;
 void setup()
 {
   Serial.begin(115200);
+  Serial.println("\n=== ESP32-S3 IoT System ===");
+  
   SensorSerial.begin(9600, SERIAL_8N1, RXD2, TXD2); // RXD2, TXD2 for Modbus
   pinMode(RS485_DIR, OUTPUT); // From modbus.h
   digitalWrite(RS485_DIR, LOW);
@@ -30,8 +32,11 @@ void setup()
   // Initialize WiFi (also initializes NTP for timestamps)
   initWiFi();
 
-  initializePZEM(); // Initialize PZEM sensor
-  initializeDimmers(); // Initialize the dimmers
+  initializePZEM();       // Initialize PZEM sensor
+  initializeDimmers();    // Initialize the dimmers
+  initLightSensor();      // Initialize light sensor
+  
+  Serial.println("System Ready!");
 }
 
 void loop()
@@ -66,21 +71,21 @@ void loop()
     Serial.println("{\"pzem_status\":\"disconnected\"}");
   }
 
-  // --- Manual Dimmer Control Demo ---
-  setDimmerBrightness(1, brightness1);
-  setDimmerBrightness(2, brightness2);
-  Serial.print("{\"dimmer_brightness\":");
-  Serial.print(brightness1);
+  // --- Automatic Light-Based Dimmer Control ---
+  // Read light sensor and calculate brightness
+  lightLevel = readLightLevel();
+  brightness = calculateBrightness();
+  
+  // Apply brightness to both dimmers
+  setDimmerBrightness(1, brightness);
+  setDimmerBrightness(2, brightness);
+  
+  // Log light sensor data
+  Serial.print("{\"light_level\":");
+  Serial.print(lightLevel);
+  Serial.print(",\"auto_brightness\":");
+  Serial.print(brightness);
   Serial.println("}");
-
-  // Change the brightness for next time through the loop
-  brightness1 = brightness1 + fadeAmount;
-  brightness2 = brightness2 + fadeAmount; // Synced for demo
-
-  // Reverse the direction of the fade at the ends
-  if (brightness1 <= 0 || brightness1 >= 100) {
-    fadeAmount = -fadeAmount;
-  }
 
   // --- Firebase Upload (every 5 seconds) ---
   unsigned long currentMillis = millis();
@@ -88,12 +93,12 @@ void loop()
     lastFirebaseUpload = currentMillis;
     
     // Send all sensor data to Firebase
-    if (sendDataToFirebase(temperature, humidity, pzemData, brightness1, brightness2)) {
+    if (sendDataToFirebase(temperature, humidity, pzemData, brightness, lightLevel)) {
       Serial.println("{\"firebase\":\"upload_success\"}");
     } else {
       Serial.println("{\"firebase\":\"upload_failed\"}");
     }
   }
 
-  delay(100); // Shorten delay for smoother fading;
+  delay(100); // Short delay for responsive dimmer control
 }
