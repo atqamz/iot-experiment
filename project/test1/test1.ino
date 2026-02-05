@@ -20,6 +20,10 @@ int lightLevel = 0;
 const unsigned long FIREBASE_INTERVAL = 5000;
 unsigned long lastFirebaseUpload = 0;
 
+// Firestore logging interval (5 minutes)
+const unsigned long FIRESTORE_INTERVAL = 300000;  // 5 * 60 * 1000
+unsigned long lastFirestoreUpload = 0;
+
 void setup()
 {
   Serial.begin(115200);
@@ -87,16 +91,28 @@ void loop()
   Serial.print(brightness);
   Serial.println("}");
 
-  // --- Firebase Upload (every 5 seconds) ---
+  // --- Firebase Realtime DB Upload (every 5 seconds) ---
   unsigned long currentMillis = millis();
   if (currentMillis - lastFirebaseUpload >= FIREBASE_INTERVAL) {
     lastFirebaseUpload = currentMillis;
     
-    // Send all sensor data to Firebase
+    // Send all sensor data to Firebase Realtime DB (live state)
     if (sendDataToFirebase(temperature, humidity, pzemData, brightness, lightLevel)) {
       Serial.println("{\"firebase\":\"upload_success\"}");
     } else {
       Serial.println("{\"firebase\":\"upload_failed\"}");
+    }
+  }
+
+  // --- Firestore Logging (every 5 minutes) ---
+  if (currentMillis - lastFirestoreUpload >= FIRESTORE_INTERVAL) {
+    lastFirestoreUpload = currentMillis;
+    
+    // Send data to Firestore for historical logging
+    if (sendDataToFirestore(temperature, humidity, pzemData, brightness, lightLevel)) {
+      Serial.println("{\"firestore\":\"log_success\"}");
+    } else {
+      Serial.println("{\"firestore\":\"log_failed\"}");
     }
   }
 

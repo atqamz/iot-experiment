@@ -26,11 +26,18 @@ void initNTP();
 // Get human-readable timestamp string (format: "YYYY-MM-DD HH:MM:SS")
 String getTimestamp();
 
-// Send sensor data to Firebase
+// Get ISO 8601 timestamp for Firestore (format: "YYYY-MM-DDTHH:MM:SSZ")
+String getISOTimestamp();
+
+// Send sensor data to Firebase Realtime Database (live state, every 5 seconds)
 // Returns true if successful, false otherwise
 // brightness: current dimmer brightness (0-100)
 // lightLevel: raw light sensor reading (0-4095)
 bool sendDataToFirebase(float temperature, float humidity, PzemData pzemData, int brightness, int lightLevel);
+
+// Send sensor data to Firestore (historical logging, every 5 minutes)
+// Creates a new document in the 'sensorLogs' collection
+bool sendDataToFirestore(float temperature, float humidity, PzemData pzemData, int brightness, int lightLevel);
 
 // Check WiFi connection status
 bool isWiFiConnected();

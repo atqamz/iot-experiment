@@ -14,7 +14,7 @@ void initLightSensor() {
         samples[i] = 0;
     }
     
-    Serial.println("Light sensor initialized on GPIO 4");
+    Serial.println("Light sensor initialized on GPIO 5");
 }
 
 int readLightLevel() {
@@ -47,15 +47,15 @@ int readLightLevel() {
 int calculateBrightness() {
     int lightLevel = readLightLevel();
     
-    // MDL-07 behavior:
-    // - Dark environment: Low ADC value (close to 0)
-    // - Bright environment: High ADC value (close to 4095)
+    // MDL-07 behavior (photoresistor module):
+    // - Bright environment: Low ADC value (close to 0) - more light = lower resistance
+    // - Dark environment: High ADC value (close to 4095) - less light = higher resistance
     
-    // Invert for dimmer control:
-    // - Dark (0) -> 100% brightness
-    // - Light (4095) -> 0% brightness
+    // Dimmer control logic:
+    // - Bright (low ADC ~0) -> Dimmer OFF (0%) - don't need artificial light
+    // - Dark (high ADC ~4095) -> Dimmer ON (100%) - need artificial light
     
-    int brightness = map(lightLevel, 0, 4095, 100, 0);
+    int brightness = map(lightLevel, 0, 4095, 0, 100);
     
     // Constrain to valid range
     return constrain(brightness, 0, 100);
